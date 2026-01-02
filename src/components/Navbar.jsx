@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useLanguage } from '../hooks/LanguageContext';
 
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const location = useLocation();
+    const { t } = useLanguage();
 
     const links = [
-        { name: 'Home', path: '/' },
-        { name: 'Feed', path: '/feed' },
-        { name: 'Tools', path: '/tools' },
-        { name: 'Cases', path: '/cases' },
-        { name: 'Playbooks', path: '/playbooks' },
-        { name: 'Goals', path: '/goals' },
+        { name: t('nav.home'), path: '/' },
+        { name: t('nav.feed'), path: '/feed' },
+        { name: t('nav.tools'), path: '/tools' },
+        { name: t('nav.cases'), path: '/cases' },
+        { name: t('nav.playbooks'), path: '/playbooks' },
+        { name: t('nav.goals'), path: '/goals' },
     ];
 
     const isActive = (path) => location.pathname === path;

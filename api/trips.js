@@ -1,5 +1,5 @@
 import { checkAdmin, getSupabaseAdmin } from '../lib/supabase-server.js';
-import { toolSchema } from './schemas.js';
+import { tripSchema } from './schemas.js';
 
 const supabase = getSupabaseAdmin();
 
@@ -7,9 +7,10 @@ export default async function handler(request, response) {
     try {
         if (request.method === 'GET') {
             const { data, error } = await supabase
-                .from('tools')
+                .from('trips')
                 .select('*')
-                .order('created_at', { ascending: true });
+                .order('year', { ascending: false })
+                .order('month', { ascending: false });
 
             if (error) throw error;
             return response.json({ results: data });
@@ -24,13 +25,15 @@ export default async function handler(request, response) {
 
             // Validate input
             try {
-                const validated = toolSchema.parse(request.body);
+                const validated = tripSchema.parse(request.body);
 
                 const { error } = await supabase
-                    .from('tools')
+                    .from('trips')
                     .insert([{
-                        name: validated.name,
-                        category: validated.category,
+                        country: validated.country,
+                        display_name: validated.display_name,
+                        month: validated.month,
+                        year: validated.year,
                         description: validated.description
                     }]);
 
@@ -60,7 +63,7 @@ export default async function handler(request, response) {
             }
 
             const { error } = await supabase
-                .from('tools')
+                .from('trips')
                 .delete()
                 .eq('id', id);
 
@@ -69,6 +72,7 @@ export default async function handler(request, response) {
         }
 
         return response.status(405).json({ error: 'Method not allowed' });
+
     } catch (err) {
         console.error(err);
         return response.status(500).json({ error: "Internal Server Error" });

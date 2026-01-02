@@ -12,6 +12,7 @@ import MapPage from './pages/MapPage';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
 import Goals from './pages/Goals';
+import { useLanguage } from './hooks/LanguageContext';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -22,6 +23,8 @@ const ScrollToTop = () => {
 }
 
 function App() {
+  const { t } = useLanguage();
+
   return (
     <Router>
       <ScrollToTop />
@@ -42,7 +45,7 @@ function App() {
         </Routes>
       </main>
       <footer style={{ padding: '4rem 0 2rem', textAlign: 'center', color: 'var(--color-gray)', fontSize: '0.9rem', borderTop: '1px solid #111', marginTop: '4rem' }}>
-        <p>&copy; {new Date().getFullYear()} Breno Pires. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} Breno Pires. {t('footer.rights')}</p>
       </footer>
     </Router>
   );

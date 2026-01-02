@@ -1,174 +1,101 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
-import { travelHistory, userProfile } from '../data/content';
+import { userProfile } from '../data/content';
+import { useLanguage } from '../hooks/LanguageContext';
 
-// Custom Dark Map Style (Snazzy Maps style or similar dark theme)
+// Custom Dark Map Style
 const darkMapStyle = [
-    {
-        "elementType": "geometry",
-        "stylers": [{ "color": "#000000" }]
-    },
-    {
-        "elementType": "labels.icon",
-        "stylers": [{ "visibility": "off" }]
-    },
-    {
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "elementType": "labels.text.stroke",
-        "stylers": [{ "color": "#212121" }]
-    },
-    {
-        "featureType": "administrative",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "featureType": "administrative.country",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#9e9e9e" }]
-    },
-    {
-        "featureType": "administrative.land_parcel",
-        "stylers": [{ "visibility": "off" }]
-    },
-    {
-        "featureType": "administrative.locality",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#bdbdbd" }]
-    },
-    {
-        "featureType": "poi",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#181818" }]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#616161" }]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "labels.text.stroke",
-        "stylers": [{ "color": "#1b1b1b" }]
-    },
-    {
-        "featureType": "road",
-        "elementType": "geometry.fill",
-        "stylers": [{ "color": "#2c2c2c" }]
-    },
-    {
-        "featureType": "road",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#8a8a8a" }]
-    },
-    {
-        "featureType": "road.arterial",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#373737" }]
-    },
-    {
-        "featureType": "road.highway",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#3c3c3c" }]
-    },
-    {
-        "featureType": "road.highway.controlled_access",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#4e4e4e" }]
-    },
-    {
-        "featureType": "road.local",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#616161" }]
-    },
-    {
-        "featureType": "transit",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#000000" }]
-    },
-    {
-        "featureType": "water",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#3d3d3d" }]
-    }
+    { "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
+    { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+    { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+    { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
+    { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
+    { "featureType": "administrative.country", "elementType": "labels.text.fill", "stylers": [{ "color": "#9e9e9e" }] },
+    { "featureType": "administrative.land_parcel", "stylers": [{ "visibility": "off" }] },
+    { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#bdbdbd" }] },
+    { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+    { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#181818" }] },
+    { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#616161" }] },
+    { "featureType": "poi.park", "elementType": "labels.text.stroke", "stylers": [{ "color": "#1b1b1b" }] },
+    { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#2c2c2c" }] },
+    { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#8a8a8a" }] },
+    { "featureType": "road.arterial", "elementType": "geometry", "stylers": [{ "color": "#373737" }] },
+    { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#3c3c3c" }] },
+    { "featureType": "road.highway.controlled_access", "elementType": "geometry", "stylers": [{ "color": "#4e4e4e" }] },
+    { "featureType": "road.local", "elementType": "labels.text.fill", "stylers": [{ "color": "#616161" }] },
+    { "featureType": "transit", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+    { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
+    { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#3d3d3d" }] }
 ];
 
-// List of target countries to highlight
-// Mapping Portuguese names to likely GeoJSON 'admin' or 'name' properties
-const targetCountries = [
-    'United States of America', 'Brazil', 'Germany', 'Italy', 'Israel',
-    'Turkey', 'China', 'Greece', 'United Kingdom', 'Czech Republic',
-    'Slovakia', 'Netherlands', 'France', 'Spain', 'Portugal',
-    'Argentina', 'Chile', 'Austria', 'Hungary', 'Belgium'
-];
+// List of target countries to highlight is now driven by database trips
 
-// Component to handle GeoJSON data layer interactions
-const GeoJsonLayer = () => {
+const GeoJsonLayer = ({ dynamicCountries }) => {
     const map = useMap();
-
     useEffect(() => {
         if (!map) return;
-
-        // Fetch World GeoJSON (Low resolution for performance)
         fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
             .then(response => response.json())
             .then(data => {
-                // Add GeoJSON to the map
                 map.data.addGeoJson(data);
-
-                // Style the data layer
                 map.data.setStyle((feature) => {
                     const countryName = feature.getProperty('name');
-                    const isTarget = targetCountries.includes(countryName) ||
-                        (countryName === 'United States' && targetCountries.includes('United States of America'));
-
+                    const isTarget = dynamicCountries.includes(countryName) ||
+                        (countryName === 'United States' && dynamicCountries.includes('United States of America'));
                     return {
-                        fillColor: isTarget ? '#ffffff' : '#000000', // White for target, black for others
+                        fillColor: isTarget ? '#ffffff' : '#000000',
                         strokeColor: '#333333',
                         strokeWeight: 1,
-                        fillOpacity: isTarget ? 1 : 0, // Solid white
+                        fillOpacity: isTarget ? 1 : 0,
                         clickable: false
                     };
                 });
             });
-
         return () => {
-            // Cleanup if needed (though map instance usually persists or unmounts completely)
-            map.data.forEach((feature) => {
-                map.data.remove(feature);
-            })
-        }
-
-    }, [map]);
-
+            map.data.forEach((feature) => { map.data.remove(feature); });
+        };
+    }, [map, dynamicCountries]);
     return null;
 };
 
 const MapPage = () => {
+    const { t, language } = useLanguage();
+    const [dbTrips, setDbTrips] = useState([]);
+
+    useEffect(() => {
+        fetch('/api/trips')
+            .then(res => res.json())
+            .then(data => setDbTrips(data.results || []));
+    }, []);
+
+    const mergedHistory = [];
+    dbTrips.forEach(trip => {
+        let yearEntry = mergedHistory.find(h => h.year === trip.year);
+        const destination = { country: trip.country, name: trip.display_name, month: trip.month };
+        if (yearEntry) {
+            yearEntry.destinations.push(destination);
+        } else {
+            mergedHistory.push({ year: trip.year, destinations: [destination] });
+        }
+    });
+    // Sort merged history by year
+    mergedHistory.sort((a, b) => a.year - b.year);
+
     const visitedSet = new Set();
-    travelHistory.forEach(yearGroup => {
+    mergedHistory.forEach(yearGroup => {
         yearGroup.destinations.forEach(dest => visitedSet.add(dest.country));
     });
 
-    // Add other target countries that might not be in the explicit timeline but are mentioned in the list
-    targetCountries.forEach(c => visitedSet.add(c));
+    const dynamicCountries = dbTrips.map(t => t.country);
 
     const visitedCount = visitedSet.size;
     const progressPercent = Math.round((visitedCount / userProfile.targetWorldTour) * 100);
     const age = userProfile.currentYear - userProfile.birthYear;
+
+    const getLocalized = (dest, field) => {
+        if (dest[language] && dest[language][field]) return dest[language][field];
+        return dest[field] || "";
+    };
 
     return (
         <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative', overflow: 'hidden' }}>
@@ -181,11 +108,10 @@ const MapPage = () => {
                     style={{ width: '100%', height: '100%' }}
                     backgroundColor={'#000000'}
                 >
-                    <GeoJsonLayer />
+                    <GeoJsonLayer dynamicCountries={dynamicCountries} />
                 </Map>
             </APIProvider>
 
-            {/* Sidebar Overlay */}
             <div className="travel-sidebar" style={{
                 position: 'absolute',
                 top: '20px',
@@ -204,14 +130,14 @@ const MapPage = () => {
                 overflowY: 'auto'
             }}>
                 <div style={{ marginBottom: '32px' }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '8px' }}>Volta ao Mundo</h2>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '8px' }}>{t('map.title')}</h2>
                     <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '20px' }}>
-                        Nascido em {userProfile.birthYear} • {age} anos
+                        {t('map.bornIn')} {userProfile.birthYear} • {age} {t('map.yearsOld')}
                     </p>
 
                     <div style={{ marginBottom: '12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
-                            <span>Progresso</span>
+                            <span>{t('map.progress')}</span>
                             <span style={{ color: '#fff', fontWeight: 'bold' }}>{progressPercent}%</span>
                         </div>
                         <div style={{ height: '4px', background: '#222', borderRadius: '2px', overflow: 'hidden' }}>
@@ -226,19 +152,19 @@ const MapPage = () => {
 
                     <div style={{ display: 'flex', gap: '24px', fontSize: '0.85rem' }}>
                         <div>
-                            <div style={{ color: '#888', marginBottom: '4px' }}>Realizado</div>
+                            <div style={{ color: '#888', marginBottom: '4px' }}>{t('map.done')}</div>
                             <div style={{ fontSize: '1.2rem', fontWeight: '500' }}>{visitedCount}</div>
                         </div>
                         <div>
-                            <div style={{ color: '#888', marginBottom: '4px' }}>Faltam</div>
+                            <div style={{ color: '#888', marginBottom: '4px' }}>{t('map.left')}</div>
                             <div style={{ fontSize: '1.2rem', fontWeight: '500' }}>{userProfile.targetWorldTour - visitedCount}</div>
                         </div>
                     </div>
                 </div>
 
                 <div className="timeline">
-                    <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: '24px' }}>Histórico</h3>
-                    {travelHistory.slice().reverse().map((entry) => (
+                    <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: '24px' }}>{t('map.timeline')}</h3>
+                    {mergedHistory.slice().reverse().map((entry) => (
                         <div key={entry.year} style={{
                             position: 'relative',
                             paddingLeft: '24px',
@@ -265,7 +191,7 @@ const MapPage = () => {
                                         borderRadius: '4px',
                                         color: '#ccc'
                                     }}>
-                                        {dest.name}{dest.month ? ` (${dest.month})` : ''}
+                                        {getLocalized(dest, 'name')}{getLocalized(dest, 'month') ? ` (${getLocalized(dest, 'month')})` : ''}
                                     </span>
                                 ))}
                             </div>
@@ -284,7 +210,7 @@ const MapPage = () => {
                     padding: '8px 16px',
                     borderRadius: '8px',
                     fontSize: '0.9rem'
-                }}>Back to Home</a>
+                }}>{t('nav.backHome')}</a>
             </div>
         </div>
     );

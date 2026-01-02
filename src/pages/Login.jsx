@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signIn, signUp } from '../lib/auth-client';
+import { auth } from '../lib/supabase-client';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -12,16 +12,11 @@ const Login = () => {
         e.preventDefault();
         setError('');
 
-        // For Better Auth / Neon Auth, simplified
-        const { data, error } = await signIn.email({
-            email,
-            password,
-        });
-
-        if (error) {
-            setError(error.message || 'Authentication failed');
-        } else {
+        try {
+            await auth.signIn(email, password);
             navigate('/admin');
+        } catch (error) {
+            setError(error.message || 'Authentication failed');
         }
     };
 

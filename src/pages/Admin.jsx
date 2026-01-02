@@ -1,23 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { useSession } from '../lib/auth-client';
+import { supabase } from '../lib/supabase-client';
 import { useNavigate } from 'react-router-dom';
 
 const Admin = () => {
-    const { data: session, isPending } = useSession();
+    const [session, setSession] = useState(null);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('posts');
 
     useEffect(() => {
-        if (!isPending && !session) {
-            navigate('/login');
-        } else if (session && session.user.email !== 'breno@familiapires.com.br') {
-            alert('Access Denied: You are not an admin.');
-            // optionally sign out or redirect
-            navigate('/');
-        }
-    }, [session, isPending, navigate]);
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setLoading(false);
 
-    if (isPending) return <div className="container section">Loading...</div>;
+            if (!session) {
+                navigate('/login');
+            } else if (session.user.email !== 'breno@familiapires.com.br') {
+                alert('Access Denied: You are not an admin.');
+                navigate('/');
+            }
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, [navigate]);
+
+    if (loading) return <div className="container section">Loading...</div>;
     if (!session) return null;
 
     return (
@@ -28,7 +39,7 @@ const Admin = () => {
             </div>
 
             <nav style={{ display: 'flex', borderBottom: '1px solid #333', marginBottom: '2rem', overflowX: 'auto' }}>
-                {['posts', 'media', 'tools', 'playbooks', 'cases'].map(tab => (
+                {['posts', 'media', 'tools', 'playbooks', 'cases', 'trips'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -55,6 +66,7 @@ const Admin = () => {
                 {activeTab === 'tools' && <ToolsManager />}
                 {activeTab === 'playbooks' && <PlaybooksManager />}
                 {activeTab === 'cases' && <CasesManager />}
+                {activeTab === 'trips' && <TripsManager />}
             </div>
         </div>
     );
@@ -240,6 +252,55 @@ const CasesManager = () => {
                 <button type="submit" className="btn">Add Case</button>
             </form>
             <List items={items} onDelete={async (id) => { await fetch(`/api/cases?id=${id}`, { method: 'DELETE', credentials: 'include' }); fetchItems(); }} titleKey="title" subKey="result" />
+        </div>
+    );
+};
+
+const TripsManager = () => {
+    const [trips, setTrips] = useState([]);
+    const [formData, setFormData] = useState({ country: '', display_name: '', month: '', year: new Date().getFullYear(), description: '' });
+    const [loading, setLoading] = useState(false);
+
+    const fetchTrips = () => fetch('/api/trips').then(res => res.json()).then(data => setTrips(data.results || []));
+
+    useEffect(() => { fetchTrips(); }, []);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        await fetch('/api/trips', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+            credentials: 'include'
+        });
+        setLoading(false);
+        setFormData({ country: '', display_name: '', month: '', year: new Date().getFullYear(), description: '' });
+        fetchTrips();
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm('Delete?')) return;
+        await fetch(`/api/trips?id=${id}`, { method: 'DELETE', credentials: 'include' });
+        fetchTrips();
+    };
+
+    return (
+        <div>
+            <h2>Manage Trips</h2>
+            <form onSubmit={handleSubmit} style={formStyle}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <input placeholder="Country Name (for Map coloring, e.g. Brazil)" value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} style={inputStyle} required />
+                    <input placeholder="Display Name (e.g. Brasil)" value={formData.display_name} onChange={e => setFormData({ ...formData, display_name: e.target.value })} style={inputStyle} required />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <input placeholder="Month (e.g. Feb)" value={formData.month} onChange={e => setFormData({ ...formData, month: e.target.value })} style={inputStyle} />
+                    <input type="number" placeholder="Year" value={formData.year} onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })} style={inputStyle} required />
+                </div>
+                <textarea placeholder="Description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={inputStyle} />
+                <button type="submit" className="btn" disabled={loading}>{loading ? 'Saving...' : 'Add Trip'}</button>
+            </form>
+            <List items={trips} onDelete={handleDelete} titleKey="display_name" subKey="year" />
         </div>
     );
 };

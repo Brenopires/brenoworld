@@ -1,59 +1,76 @@
-import { Pool } from 'pg';
+import { checkAdmin, getSupabaseAdmin } from '../lib/supabase-server.js';
+import { caseSchema } from './schemas.js';
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
-
-async function checkAuth(req) {
-    const cookieHeader = req.headers.cookie;
-    if (!cookieHeader) return null;
-    const match = cookieHeader.match(/better-auth.session_token=([^;]+)/);
-    const token = match ? match[1] : null;
-    if (!token) return null;
-    const client = await pool.connect();
-    try {
-        const res = await client.query('SELECT * FROM neon_auth.session WHERE token = $1 AND "expiresAt" > NOW()', [token]);
-        return res.rows[0];
-    } catch (e) {
-        console.error(e);
-        return null;
-    } finally {
-        client.release();
-    }
-}
+const supabase = getSupabaseAdmin();
 
 export default async function handler(request, response) {
-    const client = await pool.connect();
     try {
         if (request.method === 'GET') {
-            const result = await client.query('SELECT * FROM cases ORDER BY created_at DESC');
-            return response.json({ results: result.rows });
+            const { data, error } = await supabase
+                .from('cases')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return response.json({ results: data });
         }
 
         if (request.method === 'POST') {
-            if (!await checkAuth(request)) return response.status(401).json({ error: 'Unauthorized' });
+            try {
+                await checkAdmin(request);
+            } catch (err) {
+                return response.status(err.statusCode || 401).json({ error: err.message });
+            }
 
-            const { title, summary, result, lessons } = request.body;
-            // lessons is array
-            await client.query(
-                'INSERT INTO cases (title, summary, result, lessons) VALUES ($1, $2, $3, $4)',
-                [title, summary, result, JSON.stringify(lessons)]
-            );
-            return response.status(201).json({ success: true });
+            // Validate input
+            try {
+                const validated = caseSchema.parse(request.body);
+
+                const { error } = await supabase
+                    .from('cases')
+                    .insert([{
+                        title: validated.title,
+                        summary: validated.summary,
+                        result: validated.result,
+                        lessons: validated.lessons
+                    }]);
+
+                if (error) throw error;
+                return response.status(201).json({ success: true });
+            } catch (validationError) {
+                if (validationError.errors) {
+                    return response.status(400).json({
+                        error: 'Validation failed',
+                        details: validationError.errors
+                    });
+                }
+                throw validationError;
+            }
         }
 
         if (request.method === 'DELETE') {
-            if (!await checkAuth(request)) return response.status(401).json({ error: 'Unauthorized' });
+            try {
+                await checkAdmin(request);
+            } catch (err) {
+                return response.status(err.statusCode || 401).json({ error: err.message });
+            }
+
             const { id } = request.query;
-            await client.query('DELETE FROM cases WHERE id = $1', [id]);
+            if (!id) {
+                return response.status(400).json({ error: 'ID is required' });
+            }
+
+            const { error } = await supabase
+                .from('cases')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
             return response.json({ success: true });
         }
         return response.status(405).json({ error: 'Method not allowed' });
     } catch (err) {
         console.error(err);
         return response.status(500).json({ error: "Internal Server Error" });
-    } finally {
-        client.release();
     }
 }
