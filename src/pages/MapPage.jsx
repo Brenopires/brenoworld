@@ -32,69 +32,99 @@ const darkMapStyle = [
 
 const GeoJsonLayer = ({ dynamicCountries, dbTrips, setSelectedCountry, setHoveredCountry }) => {
     const map = useMap();
+    const [geoDataLoaded, setGeoDataLoaded] = useState(false);
+
+    // Helper function para verificar se país foi visitado
+    const isCountryVisited = (countryName) => {
+        return dynamicCountries.includes(countryName) ||
+            (countryName === 'United States' && dynamicCountries.includes('United States of America'));
+    };
+
+    // Effect 1: Carregar GeoJSON uma única vez
     useEffect(() => {
         if (!map) return;
+
         fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
             .then(response => response.json())
             .then(data => {
                 map.data.addGeoJson(data);
-                map.data.setStyle((feature) => {
-                    const countryName = feature.getProperty('name');
-                    const isTarget = dynamicCountries.includes(countryName) ||
-                        (countryName === 'United States' && dynamicCountries.includes('United States of America'));
-                    return {
-                        fillColor: isTarget ? '#ffffff' : '#000000',
-                        strokeColor: '#333333',
-                        strokeWeight: 1,
-                        fillOpacity: isTarget ? 1 : 0,
-                        clickable: isTarget
-                    };
-                });
+                setGeoDataLoaded(true);
+            })
+            .catch(err => console.error('Error loading GeoJSON:', err));
 
-                // Click handler
-                const clickListener = map.data.addListener('click', (event) => {
-                    const countryName = event.feature.getProperty('name');
-                    const trips = dbTrips.filter(trip =>
-                        trip.country === countryName ||
-                        (countryName === 'United States' && trip.country === 'United States of America')
-                    );
-
-                    if (trips.length > 0) {
-                        setSelectedCountry({ name: countryName, trips });
-                    }
-                });
-
-                // Hover handlers
-                const mouseoverListener = map.data.addListener('mouseover', (event) => {
-                    const countryName = event.feature.getProperty('name');
-                    const isVisited = dynamicCountries.includes(countryName);
-
-                    if (isVisited) {
-                        map.data.overrideStyle(event.feature, {
-                            fillOpacity: 0.8,
-                            strokeWeight: 2
-                        });
-
-                        const displayName = dbTrips.find(t => t.country === countryName)?.display_name || countryName;
-                        setHoveredCountry(displayName);
-                    }
-                });
-
-                const mouseoutListener = map.data.addListener('mouseout', (event) => {
-                    map.data.revertStyle(event.feature);
-                    setHoveredCountry(null);
-                });
-
-                return () => {
-                    if (clickListener) window.google.maps.event.removeListener(clickListener);
-                    if (mouseoverListener) window.google.maps.event.removeListener(mouseoverListener);
-                    if (mouseoutListener) window.google.maps.event.removeListener(mouseoutListener);
-                };
-            });
         return () => {
             map.data.forEach((feature) => { map.data.remove(feature); });
         };
-    }, [map, dynamicCountries, dbTrips, setSelectedCountry, setHoveredCountry]);
+    }, [map]);
+
+    // Effect 2: Aplicar styling quando dynamicCountries mudar
+    useEffect(() => {
+        if (!map || !geoDataLoaded) return;
+
+        map.data.setStyle((feature) => {
+            const countryName = feature.getProperty('name');
+            const isTarget = isCountryVisited(countryName);
+
+            return {
+                fillColor: isTarget ? '#ffffff' : '#000000',
+                strokeColor: '#333333',
+                strokeWeight: 1,
+                fillOpacity: isTarget ? 1 : 0,
+                clickable: isTarget
+            };
+        });
+    }, [map, dynamicCountries, geoDataLoaded]);
+
+    // Effect 3: Event listeners
+    useEffect(() => {
+        if (!map || !geoDataLoaded) return;
+
+        // Click listener
+        const clickListener = map.data.addListener('click', (event) => {
+            const countryName = event.feature.getProperty('name');
+            const trips = dbTrips.filter(trip =>
+                trip.country === countryName ||
+                (countryName === 'United States' && trip.country === 'United States of America')
+            );
+
+            if (trips.length > 0) {
+                setSelectedCountry({ name: countryName, trips });
+            }
+        });
+
+        // Mouseover listener
+        const mouseoverListener = map.data.addListener('mouseover', (event) => {
+            const countryName = event.feature.getProperty('name');
+
+            if (isCountryVisited(countryName)) {
+                map.data.overrideStyle(event.feature, {
+                    fillOpacity: 0.8,
+                    strokeWeight: 2
+                });
+
+                const trip = dbTrips.find(t =>
+                    t.country === countryName ||
+                    (countryName === 'United States' && t.country === 'United States of America')
+                );
+                const displayName = trip?.display_name || countryName;
+                setHoveredCountry(displayName);
+            }
+        });
+
+        // Mouseout listener
+        const mouseoutListener = map.data.addListener('mouseout', (event) => {
+            map.data.revertStyle(event.feature);
+            setHoveredCountry(null);
+        });
+
+        // Cleanup correto no escopo do useEffect
+        return () => {
+            if (clickListener) window.google.maps.event.removeListener(clickListener);
+            if (mouseoverListener) window.google.maps.event.removeListener(mouseoverListener);
+            if (mouseoutListener) window.google.maps.event.removeListener(mouseoutListener);
+        };
+    }, [map, geoDataLoaded, dbTrips, dynamicCountries, setSelectedCountry, setHoveredCountry]);
+
     return null;
 };
 
@@ -204,7 +234,7 @@ const MapPage = () => {
         yearGroup.destinations.forEach(dest => visitedSet.add(dest.country));
     });
 
-    const dynamicCountries = dbTrips.map(t => t.country);
+    const dynamicCountries = [...new Set(dbTrips.map(t => t.country))];
 
     const visitedCount = visitedSet.size;
     const progressPercent = Math.round((visitedCount / userProfile.targetWorldTour) * 100);
