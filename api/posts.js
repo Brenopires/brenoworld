@@ -1,10 +1,16 @@
 import { checkAdmin, getSupabaseAdmin } from '../lib/supabase-server.js';
 import { postSchema } from './schemas.js';
 
-const supabase = getSupabaseAdmin();
-
 export default async function handler(request, response) {
     try {
+        // Initialize Supabase client
+        const supabase = getSupabaseAdmin();
+
+        if (!supabase) {
+            console.error('Supabase client not initialized');
+            return response.status(500).json({ error: 'Database connection failed' });
+        }
+
         if (request.method === 'GET') {
             const { data, error } = await supabase
                 .from('posts')
@@ -13,7 +19,7 @@ export default async function handler(request, response) {
 
             if (error) {
                 console.error('GET error:', error.message);
-                throw error;
+                return response.status(500).json({ error: error.message });
             }
             console.log('GET success, posts count:', data?.length || 0);
             return response.json({ results: data });
@@ -87,7 +93,11 @@ export default async function handler(request, response) {
         return response.status(405).json({ error: 'Method not allowed' });
 
     } catch (err) {
-        console.error(err);
-        return response.status(500).json({ error: "Internal Server Error" });
+        console.error('Fatal error:', err.message, err.stack);
+        return response.status(500).json({
+            error: "Internal Server Error",
+            message: err.message,
+            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 }
