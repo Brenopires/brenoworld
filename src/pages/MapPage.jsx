@@ -44,16 +44,13 @@ const GeoJsonLayer = ({ dynamicCountries, dbTrips, setSelectedCountry, setHovere
     useEffect(() => {
         if (!map) return;
 
-        console.log('[MapPage] Loading GeoJSON...');
         fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
             .then(response => response.json())
             .then(data => {
-                console.log('[MapPage] GeoJSON loaded, adding to map');
                 map.data.addGeoJson(data);
                 setGeoDataLoaded(true);
-                console.log('[MapPage] GeoJSON added, geoDataLoaded set to true');
             })
-            .catch(err => console.error('[MapPage] Error loading GeoJSON:', err));
+            .catch(err => console.error('Error loading GeoJSON:', err));
 
         return () => {
             map.data.forEach((feature) => { map.data.remove(feature); });
@@ -64,15 +61,9 @@ const GeoJsonLayer = ({ dynamicCountries, dbTrips, setSelectedCountry, setHovere
     useEffect(() => {
         if (!map || !geoDataLoaded) return;
 
-        console.log('[MapPage] Applying styling with dynamicCountries:', dynamicCountries);
-
         map.data.setStyle((feature) => {
             const countryName = feature.getProperty('name');
             const isTarget = isCountryVisited(countryName);
-
-            if (isTarget) {
-                console.log('[MapPage] Coloring visited country:', countryName);
-            }
 
             return {
                 fillColor: isTarget ? '#ffffff' : '#000000',
@@ -220,14 +211,10 @@ const MapPage = () => {
     const [hoveredCountry, setHoveredCountry] = useState(null);
 
     useEffect(() => {
-        console.log('[MapPage] Fetching trips...');
         fetch('/api/trips')
             .then(res => res.json())
-            .then(data => {
-                console.log('[MapPage] Trips loaded:', data.results);
-                setDbTrips(data.results || []);
-            })
-            .catch(err => console.error('[MapPage] Error loading trips:', err));
+            .then(data => setDbTrips(data.results || []))
+            .catch(err => console.error('Error loading trips:', err));
     }, []);
 
     const mergedHistory = [];
@@ -249,8 +236,6 @@ const MapPage = () => {
     });
 
     const dynamicCountries = [...new Set(dbTrips.map(t => t.country))];
-
-    console.log('[MapPage] dynamicCountries:', dynamicCountries);
 
     const visitedCount = visitedSet.size;
     const progressPercent = Math.round((visitedCount / userProfile.targetWorldTour) * 100);
