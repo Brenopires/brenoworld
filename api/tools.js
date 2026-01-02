@@ -26,16 +26,18 @@ export default async function handler(request, response) {
             try {
                 const validated = toolSchema.parse(request.body);
 
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('tools')
                     .insert([{
                         name: validated.name,
                         category: validated.category,
                         description: validated.description
-                    }]);
+                    }])
+                    .select()
+                    .single();
 
                 if (error) throw error;
-                return response.status(201).json({ success: true });
+                return response.status(201).json(data);
             } catch (validationError) {
                 if (validationError.errors) {
                     return response.status(400).json({

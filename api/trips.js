@@ -27,7 +27,7 @@ export default async function handler(request, response) {
             try {
                 const validated = tripSchema.parse(request.body);
 
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('trips')
                     .insert([{
                         country: validated.country,
@@ -35,10 +35,12 @@ export default async function handler(request, response) {
                         month: validated.month,
                         year: validated.year,
                         description: validated.description
-                    }]);
+                    }])
+                    .select()
+                    .single();
 
                 if (error) throw error;
-                return response.status(201).json({ success: true });
+                return response.status(201).json(data);
             } catch (validationError) {
                 if (validationError.errors) {
                     return response.status(400).json({

@@ -26,7 +26,7 @@ export default async function handler(request, response) {
             try {
                 const validated = playbookSchema.parse(request.body);
 
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('playbooks')
                     .insert([{
                         id: validated.id,
@@ -35,10 +35,12 @@ export default async function handler(request, response) {
                         summary: validated.summary,
                         steps: validated.steps,
                         details: validated.details
-                    }]);
+                    }])
+                    .select()
+                    .single();
 
                 if (error) throw error;
-                return response.status(201).json({ success: true });
+                return response.status(201).json(data);
             } catch (validationError) {
                 if (validationError.errors) {
                     return response.status(400).json({

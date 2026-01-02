@@ -61,18 +61,18 @@ const Admin = () => {
             </nav>
 
             <div className="admin-content">
-                {activeTab === 'posts' && <PostsManager />}
-                {activeTab === 'media' && <MediaManager />}
-                {activeTab === 'tools' && <ToolsManager />}
-                {activeTab === 'playbooks' && <PlaybooksManager />}
-                {activeTab === 'cases' && <CasesManager />}
-                {activeTab === 'trips' && <TripsManager />}
+                {activeTab === 'posts' && <PostsManager session={session} />}
+                {activeTab === 'media' && <MediaManager session={session} />}
+                {activeTab === 'tools' && <ToolsManager session={session} />}
+                {activeTab === 'playbooks' && <PlaybooksManager session={session} />}
+                {activeTab === 'cases' && <CasesManager session={session} />}
+                {activeTab === 'trips' && <TripsManager session={session} />}
             </div>
         </div>
     );
 };
 
-const PostsManager = () => {
+const PostsManager = ({ session }) => {
     const [posts, setPosts] = useState([]);
     const [formData, setFormData] = useState({ title: '', summary: '', content: '', type: 'article' });
     const [loading, setLoading] = useState(false);
@@ -84,12 +84,13 @@ const PostsManager = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        // Include credentials (cookies)
         await fetch('/api/posts', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-            credentials: 'include'
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(formData)
         });
         setLoading(false);
         setFormData({ ...formData, title: '', summary: '', content: '' });
@@ -98,7 +99,12 @@ const PostsManager = () => {
 
     const handleDelete = async (id) => {
         if (!confirm('Delete?')) return;
-        await fetch(`/api/posts?id=${id}`, { method: 'DELETE', credentials: 'include' });
+        await fetch(`/api/posts?id=${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`
+            }
+        });
         fetchPosts();
     };
 
@@ -120,7 +126,7 @@ const PostsManager = () => {
     );
 };
 
-const MediaManager = () => {
+const MediaManager = ({ session }) => {
     const [media, setMedia] = useState([]);
     const [formData, setFormData] = useState({ type: 'image', url: '', title: '', description: '' });
     const fetchMedia = () => fetch('/api/media').then(res => res.json()).then(data => setMedia(data.results || []));
@@ -130,9 +136,11 @@ const MediaManager = () => {
         e.preventDefault();
         await fetch('/api/media', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-            credentials: 'include'
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(formData)
         });
         setFormData({ ...formData, url: '', title: '', description: '' });
         fetchMedia();
@@ -151,12 +159,20 @@ const MediaManager = () => {
                 <input placeholder="Description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={inputStyle} />
                 <button type="submit" className="btn">Add Media</button>
             </form>
-            <List items={media} onDelete={async (id) => { await fetch(`/api/media?id=${id}`, { method: 'DELETE', credentials: 'include' }); fetchMedia(); }} titleKey="title" subKey="type" />
+            <List items={media} onDelete={async (id) => {
+                await fetch(`/api/media?id=${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
+                fetchMedia();
+            }} titleKey="title" subKey="type" />
         </div>
     );
 };
 
-const ToolsManager = () => {
+const ToolsManager = ({ session }) => {
     const [tools, setTools] = useState([]);
     const [formData, setFormData] = useState({ name: '', category: '', description: '' });
     const fetchTools = () => fetch('/api/tools').then(res => res.json()).then(data => setTools(data.results || []));
@@ -166,9 +182,11 @@ const ToolsManager = () => {
         e.preventDefault();
         await fetch('/api/tools', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-            credentials: 'include'
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(formData)
         });
         setFormData({ name: '', category: '', description: '' });
         fetchTools();
@@ -183,12 +201,20 @@ const ToolsManager = () => {
                 <input placeholder="Description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={inputStyle} />
                 <button type="submit" className="btn">Add Tool</button>
             </form>
-            <List items={tools} onDelete={async (id) => { await fetch(`/api/tools?id=${id}`, { method: 'DELETE', credentials: 'include' }); fetchTools(); }} titleKey="name" subKey="category" />
+            <List items={tools} onDelete={async (id) => {
+                await fetch(`/api/tools?id=${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
+                fetchTools();
+            }} titleKey="name" subKey="category" />
         </div>
     );
 };
 
-const PlaybooksManager = () => {
+const PlaybooksManager = ({ session }) => {
     const [items, setItems] = useState([]);
     const [formData, setFormData] = useState({ id: '', title: '', category: '', summary: '', details: '' });
     const fetchItems = () => fetch('/api/playbooks').then(res => res.json()).then(data => setItems(data.results || []));
@@ -199,9 +225,11 @@ const PlaybooksManager = () => {
         const body = { ...formData, steps: [] }; // Steps simplified for now
         await fetch('/api/playbooks', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            credentials: 'include'
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(body)
         });
         setFormData({ id: '', title: '', category: '', summary: '', details: '' });
         fetchItems();
@@ -218,12 +246,20 @@ const PlaybooksManager = () => {
                 <textarea placeholder="Details (HTML)" value={formData.details} onChange={e => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '100px' }} />
                 <button type="submit" className="btn">Add Playbook</button>
             </form>
-            <List items={items} onDelete={async (id) => { await fetch(`/api/playbooks?id=${id}`, { method: 'DELETE', credentials: 'include' }); fetchItems(); }} titleKey="title" subKey="category" />
+            <List items={items} onDelete={async (id) => {
+                await fetch(`/api/playbooks?id=${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
+                fetchItems();
+            }} titleKey="title" subKey="category" />
         </div>
     );
 };
 
-const CasesManager = () => {
+const CasesManager = ({ session }) => {
     const [items, setItems] = useState([]);
     const [formData, setFormData] = useState({ title: '', summary: '', result: '' });
     const fetchItems = () => fetch('/api/cases').then(res => res.json()).then(data => setItems(data.results || []));
@@ -234,9 +270,11 @@ const CasesManager = () => {
         const body = { ...formData, lessons: [] }; // Lessons simplified
         await fetch('/api/cases', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            credentials: 'include'
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(body)
         });
         setFormData({ title: '', summary: '', result: '' });
         fetchItems();
@@ -251,12 +289,20 @@ const CasesManager = () => {
                 <textarea placeholder="Result" value={formData.result} onChange={e => setFormData({ ...formData, result: e.target.value })} style={inputStyle} />
                 <button type="submit" className="btn">Add Case</button>
             </form>
-            <List items={items} onDelete={async (id) => { await fetch(`/api/cases?id=${id}`, { method: 'DELETE', credentials: 'include' }); fetchItems(); }} titleKey="title" subKey="result" />
+            <List items={items} onDelete={async (id) => {
+                await fetch(`/api/cases?id=${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
+                fetchItems();
+            }} titleKey="title" subKey="result" />
         </div>
     );
 };
 
-const TripsManager = () => {
+const TripsManager = ({ session }) => {
     const [trips, setTrips] = useState([]);
     const [formData, setFormData] = useState({ country: '', display_name: '', month: '', year: new Date().getFullYear(), description: '' });
     const [loading, setLoading] = useState(false);
@@ -270,9 +316,11 @@ const TripsManager = () => {
         setLoading(true);
         await fetch('/api/trips', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-            credentials: 'include'
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(formData)
         });
         setLoading(false);
         setFormData({ country: '', display_name: '', month: '', year: new Date().getFullYear(), description: '' });
@@ -281,7 +329,12 @@ const TripsManager = () => {
 
     const handleDelete = async (id) => {
         if (!confirm('Delete?')) return;
-        await fetch(`/api/trips?id=${id}`, { method: 'DELETE', credentials: 'include' });
+        await fetch(`/api/trips?id=${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`
+            }
+        });
         fetchTrips();
     };
 

@@ -27,7 +27,7 @@ export default async function handler(request, response) {
                 const validated = postSchema.parse(request.body);
                 const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('posts')
                     .insert([{
                         type: validated.type,
@@ -35,10 +35,12 @@ export default async function handler(request, response) {
                         summary: validated.summary,
                         content: validated.content,
                         date: date
-                    }]);
+                    }])
+                    .select()
+                    .single();
 
                 if (error) throw error;
-                return response.status(201).json({ success: true });
+                return response.status(201).json(data);
             } catch (validationError) {
                 if (validationError.errors) {
                     return response.status(400).json({

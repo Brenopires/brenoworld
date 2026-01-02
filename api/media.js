@@ -26,17 +26,19 @@ export default async function handler(request, response) {
             try {
                 const validated = mediaSchema.parse(request.body);
 
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('media_items')
                     .insert([{
                         type: validated.type,
                         url: validated.url,
                         title: validated.title,
                         description: validated.description
-                    }]);
+                    }])
+                    .select()
+                    .single();
 
                 if (error) throw error;
-                return response.status(201).json({ success: true });
+                return response.status(201).json(data);
             } catch (validationError) {
                 if (validationError.errors) {
                     return response.status(400).json({

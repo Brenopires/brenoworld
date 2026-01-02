@@ -26,17 +26,19 @@ export default async function handler(request, response) {
             try {
                 const validated = caseSchema.parse(request.body);
 
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('cases')
                     .insert([{
                         title: validated.title,
                         summary: validated.summary,
                         result: validated.result,
                         lessons: validated.lessons
-                    }]);
+                    }])
+                    .select()
+                    .single();
 
                 if (error) throw error;
-                return response.status(201).json({ success: true });
+                return response.status(201).json(data);
             } catch (validationError) {
                 if (validationError.errors) {
                     return response.status(400).json({
