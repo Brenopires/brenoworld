@@ -30,7 +30,7 @@ const darkMapStyle = [
 
 // List of target countries to highlight is now driven by database trips
 
-const GeoJsonLayer = ({ dynamicCountries }) => {
+const GeoJsonLayer = ({ dynamicCountries, dbTrips, setSelectedCountry, setHoveredCountry }) => {
     const map = useMap();
     useEffect(() => {
         if (!map) return;
@@ -47,20 +47,138 @@ const GeoJsonLayer = ({ dynamicCountries }) => {
                         strokeColor: '#333333',
                         strokeWeight: 1,
                         fillOpacity: isTarget ? 1 : 0,
-                        clickable: false
+                        clickable: isTarget
                     };
                 });
+
+                // Click handler
+                const clickListener = map.data.addListener('click', (event) => {
+                    const countryName = event.feature.getProperty('name');
+                    const trips = dbTrips.filter(trip =>
+                        trip.country === countryName ||
+                        (countryName === 'United States' && trip.country === 'United States of America')
+                    );
+
+                    if (trips.length > 0) {
+                        setSelectedCountry({ name: countryName, trips });
+                    }
+                });
+
+                // Hover handlers
+                const mouseoverListener = map.data.addListener('mouseover', (event) => {
+                    const countryName = event.feature.getProperty('name');
+                    const isVisited = dynamicCountries.includes(countryName);
+
+                    if (isVisited) {
+                        map.data.overrideStyle(event.feature, {
+                            fillOpacity: 0.8,
+                            strokeWeight: 2
+                        });
+
+                        const displayName = dbTrips.find(t => t.country === countryName)?.display_name || countryName;
+                        setHoveredCountry(displayName);
+                    }
+                });
+
+                const mouseoutListener = map.data.addListener('mouseout', (event) => {
+                    map.data.revertStyle(event.feature);
+                    setHoveredCountry(null);
+                });
+
+                return () => {
+                    if (clickListener) window.google.maps.event.removeListener(clickListener);
+                    if (mouseoverListener) window.google.maps.event.removeListener(mouseoverListener);
+                    if (mouseoutListener) window.google.maps.event.removeListener(mouseoutListener);
+                };
             });
         return () => {
             map.data.forEach((feature) => { map.data.remove(feature); });
         };
-    }, [map, dynamicCountries]);
+    }, [map, dynamicCountries, dbTrips, setSelectedCountry, setHoveredCountry]);
     return null;
+};
+
+const CountryDetailsModal = ({ country, onClose }) => {
+    if (!country) return null;
+
+    // Group trips by year
+    const tripsByYear = country.trips.reduce((acc, trip) => {
+        if (!acc[trip.year]) acc[trip.year] = [];
+        acc[trip.year].push(trip);
+        return acc;
+    }, {});
+
+    const years = Object.keys(tripsByYear).sort((a, b) => b - a);
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '2rem'
+        }} onClick={onClose}>
+            <div style={{
+                background: '#111',
+                border: '1px solid #333',
+                borderRadius: '8px',
+                padding: '2rem',
+                maxWidth: '500px',
+                width: '100%',
+                maxHeight: '80vh',
+                overflow: 'auto'
+            }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.5rem' }}>
+                        {country.trips[0].display_name}
+                    </h2>
+                    <button onClick={onClose} style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#fff',
+                        fontSize: '1.5rem',
+                        cursor: 'pointer',
+                        padding: '0.25rem'
+                    }}>×</button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {years.map(year => (
+                        <div key={year} style={{ borderBottom: '1px solid #333', paddingBottom: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{year}</span>
+                                {tripsByYear[year].some(t => t.month) && (
+                                    <span style={{ color: '#666' }}>
+                                        {tripsByYear[year].map(t => t.month).filter(Boolean).join(', ')}
+                                    </span>
+                                )}
+                            </div>
+                            {tripsByYear[year].map((trip, idx) => (
+                                trip.description && (
+                                    <p key={idx} style={{ margin: '0.5rem 0 0 0', color: '#aaa', fontSize: '0.9rem' }}>
+                                        {trip.description}
+                                    </p>
+                                )
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const MapPage = () => {
     const { t, language } = useLanguage();
     const [dbTrips, setDbTrips] = useState([]);
+    const [selectedCountry, setSelectedCountry] = useState(null);
+    const [hoveredCountry, setHoveredCountry] = useState(null);
 
     useEffect(() => {
         fetch('/api/trips')
@@ -108,7 +226,12 @@ const MapPage = () => {
                     style={{ width: '100%', height: '100%' }}
                     backgroundColor={'#000000'}
                 >
-                    <GeoJsonLayer dynamicCountries={dynamicCountries} />
+                    <GeoJsonLayer
+                        dynamicCountries={dynamicCountries}
+                        dbTrips={dbTrips}
+                        setSelectedCountry={setSelectedCountry}
+                        setHoveredCountry={setHoveredCountry}
+                    />
                 </Map>
             </APIProvider>
 
@@ -212,6 +335,32 @@ const MapPage = () => {
                     fontSize: '0.9rem'
                 }}>{t('nav.backHome')}</a>
             </div>
+
+            {hoveredCountry && (
+                <div style={{
+                    position: 'fixed',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    color: '#000',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '4px',
+                    fontSize: '0.9rem',
+                    fontWeight: 'bold',
+                    zIndex: 999,
+                    pointerEvents: 'none'
+                }}>
+                    {hoveredCountry}
+                </div>
+            )}
+
+            {selectedCountry && (
+                <CountryDetailsModal
+                    country={selectedCountry}
+                    onClose={() => setSelectedCountry(null)}
+                />
+            )}
         </div>
     );
 };
