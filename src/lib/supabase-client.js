@@ -43,6 +43,21 @@ export const auth = {
     if (error) throw error
   },
 
+  signInWithGoogle: async (redirectTo = '/admin') => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}${redirectTo}`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      }
+    })
+    if (error) throw error
+    return data
+  },
+
   getSession: async () => {
     const { data: { session }, error } = await supabase.auth.getSession()
     if (error) throw error
