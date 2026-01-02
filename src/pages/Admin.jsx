@@ -77,24 +77,60 @@ const PostsManager = ({ session }) => {
     const [formData, setFormData] = useState({ title: '', summary: '', content: '', type: 'article' });
     const [loading, setLoading] = useState(false);
 
-    const fetchPosts = () => fetch('/api/posts').then(res => res.json()).then(data => setPosts(data.results || []));
+    const fetchPosts = () => {
+        console.log('[Posts] Fetching posts...');
+        return fetch('/api/posts')
+            .then(res => {
+                console.log('[Posts] Response status:', res.status);
+                return res.json();
+            })
+            .then(data => {
+                console.log('[Posts] Data received:', data);
+                console.log('[Posts] Number of posts:', data.results?.length || 0);
+                setPosts(data.results || []);
+            })
+            .catch(err => {
+                console.error('[Posts] Error fetching:', err);
+                alert(`Error loading posts: ${err.message}`);
+            });
+    };
 
     useEffect(() => { fetchPosts(); }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        await fetch('/api/posts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify(formData)
-        });
-        setLoading(false);
-        setFormData({ ...formData, title: '', summary: '', content: '' });
-        fetchPosts();
+
+        console.log('[Posts] Submitting post:', formData);
+        console.log('[Posts] Access token:', session?.access_token ? 'EXISTS' : 'MISSING');
+
+        try {
+            const response = await fetch('/api/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify(formData)
+            });
+
+            console.log('[Posts] Submit response status:', response.status);
+            const responseData = await response.json();
+            console.log('[Posts] Submit response data:', responseData);
+
+            if (!response.ok) {
+                throw new Error(`Failed to create post: ${responseData.error || response.statusText}`);
+            }
+
+            alert('Post created successfully!');
+            setFormData({ ...formData, title: '', summary: '', content: '' });
+            fetchPosts();
+        } catch (error) {
+            console.error('[Posts] Error submitting:', error);
+            alert(`Error creating post: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleDelete = async (id) => {
